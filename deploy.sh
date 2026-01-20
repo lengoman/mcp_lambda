@@ -50,33 +50,43 @@ mkdir package
 
 # Zip contents
 # Dependencies are in the layer, so we just package the source files
-echo "Zipping source files..."
-# Ensure run.sh is executable
-chmod +x run.sh
+# Zip source files (excluding dependencies)
+echo "Zipping source files with explicit permissions and LF enforcement..."
+rm -f $ZIP_FILE
 
-# Ensure run.sh has LF line endings for cross-platform support
-echo "Preparing run.sh with LF line endings..."
 uv run python -c "
+import zipfile
 import os
-if os.path.exists('run.sh'):
-    with open('run.sh', 'rb') as f_in, open('run_clean.sh', 'wb') as f_out:
-        content = f_in.read().replace(b'\r\n', b'\n')
-        f_out.write(content)
-"
-chmod +x run_clean.sh
 
-# Zip files - renaming run_clean.sh to run.sh inside the zip
-# We swap the files temporarily
-if [ -f "run_clean.sh" ]; then
-    mv run.sh run.sh.bak
-    mv run_clean.sh run.sh
-    zip $ZIP_FILE server.py run.sh
-    mv run.sh run_clean.sh
-    mv run.sh.bak run.sh
-    rm run_clean.sh
-else
-    zip $ZIP_FILE server.py run.sh
-fi
+zip_filename = '$ZIP_FILE'
+with zipfile.ZipFile(zip_filename, 'w', zipfile.ZIP_DEFLATED) as zf:
+    files_to_zip = ['server.py', 'run.sh']
+    for filename in files_to_zip:
+        if not os.path.exists(filename):
+            continue
+            
+        # Create ZipInfo
+        info = zipfile.ZipInfo(filename)
+        info.compress_type = zipfile.ZIP_DEFLATED
+        info.create_system = 3 # Unix
+        
+        # Read content
+        with open(filename, 'rb') as f:
+            content = f.read()
+            
+        # Enforce LF for run.sh
+        if filename == 'run.sh':
+            content = content.replace(b'\r\n', b'\n')
+            perms = 0o755
+        else:
+            perms = 0o644
+            
+        # Set permissions
+        # Correct bitwise logic: (S_IFREG | perms) << 16
+        info.external_attr = (0o100000 | perms) << 16
+        
+        zf.writestr(info, content)
+"
 
 # 3. Deployment
 echo "Deploying to AWS Lambda..."

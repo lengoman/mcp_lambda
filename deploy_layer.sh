@@ -27,8 +27,9 @@ mkdir -p layer_content/python
 mkdir -p layer_content/extensions
 
 # 1. Install Python dependencies
-echo "Installing dependencies..."
-uv pip install -r requirements.txt --target layer_content/python --system
+echo "Installing dependencies (targeting Linux x86_64)..."
+# Force installation of Linux-compatible binaries for AWS Lambda using pip
+uv run python -m pip install -r requirements.txt --target layer_content/python --platform manylinux2014_x86_64 --only-binary=:all: --implementation cp --python-version 3.11 --upgrade
 
 # 2. Get AWS Lambda Web Adapter (from Public Layer)
 echo "Downloading AWS Lambda Web Adapter from public layer..."
@@ -58,9 +59,50 @@ with open('layer_content/bootstrap', 'wb') as f:
 chmod +x layer_content/bootstrap
 
 # 4. Zip everything
-echo "Zipping layer..."
+echo "Zipping layer with explicit permissions..."
 cd layer_content
-zip -r ../$LAYER_ZIP .
+uv run python -c "
+import zipfile
+import os
+import stat
+
+zip_filename = '../$LAYER_ZIP'
+with zipfile.ZipFile(zip_filename, 'w', zipfile.ZIP_DEFLATED) as zf:
+    for root, dirs, files in os.walk('.'):
+        # Add directories explicitly to ensure 755 permissions
+        for d in dirs:
+            dir_path = os.path.join(root, d)
+            arcname = os.path.relpath(dir_path, '.')
+            info = zipfile.ZipInfo(arcname + '/')  # trailing slash for directory
+            info.compress_type = zipfile.ZIP_DEFLATED
+            info.create_system = 3
+            # Correct bitwise logic: (S_IFDIR | 0o755) << 16
+            info.external_attr = (0o040000 | 0o755) << 16 
+            zf.writestr(info, '')
+
+        for file in files:
+            file_path = os.path.join(root, file)
+            arcname = os.path.relpath(file_path, '.')
+            
+            # Create ZipInfo instance
+            info = zipfile.ZipInfo(arcname)
+            info.compress_type = zipfile.ZIP_DEFLATED
+            info.create_system = 3  # Unix
+            
+            # Set permissions
+            # 0o755 (rwxr-xr-x) for executables, 0o644 (rw-r--r--) for others
+            if arcname == 'bootstrap' or arcname.startswith('extensions/') or arcname.endswith('.sh') or arcname.endswith('.so'):
+                perms = 0o755
+            else:
+                perms = 0o644
+                
+            # Correct bitwise logic: (S_IFREG | perms) << 16
+            # 0o100000 is S_IFREG
+            info.external_attr = (0o100000 | perms) << 16
+            
+            with open(file_path, 'rb') as f:
+                zf.writestr(info, f.read())
+"
 cd ..
 
 # 4. Publish Layer
