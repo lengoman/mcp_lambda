@@ -48,6 +48,15 @@ curl -L -o layer_adapter.zip "$LAYER_URL"
 unzip -o layer_adapter.zip -d layer_content
 rm layer_adapter.zip
 
+# 3. Ensure 'bootstrap' has LF line endings (Windows fix)
+# Explicitly overwrite bootstrap to ensure it works cross-platform
+echo "Enforcing LF line endings for bootstrap..."
+python3 -c "
+with open('layer_content/bootstrap', 'wb') as f:
+    f.write(b'#!/bin/sh\nexec \"\${LAMBDA_TASK_ROOT}/\${_HANDLER}\"\n')
+"
+chmod +x layer_content/bootstrap
+
 # 4. Zip everything
 echo "Zipping layer..."
 cd layer_content

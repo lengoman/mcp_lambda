@@ -4,3 +4,4 @@ uvicorn
 httpx
 sse-starlette
 boto3
+python-dotenv

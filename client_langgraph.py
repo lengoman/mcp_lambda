@@ -155,9 +155,17 @@ async def run_workflow(tools: List[StructuredTool]):
 
 from uuid import uuid4
 import sys
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
 
 async def main():
-    base_url = "https://xw4wak6lslpzdeky35slzpr3gq0eunek.lambda-url.us-east-1.on.aws/sse"
+    lambda_url = os.getenv("LAMBDA_URL")
+    if not lambda_url:
+        print("Error: LAMBDA_URL not set in .env")
+        return
+    base_url = f"{lambda_url.rstrip('/')}/sse"
     if len(sys.argv) > 1:
         session_id = sys.argv[1]
     else:

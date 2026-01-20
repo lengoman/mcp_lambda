@@ -4,10 +4,20 @@ from mcp.client.sse import sse_client
 
 from uuid import uuid4
 import sys
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
 
 async def run():
     # The Lambda Function URL provided
-    base_url = "https://xw4wak6lslpzdeky35slzpr3gq0eunek.lambda-url.us-east-1.on.aws/sse"
+    lambda_url = os.getenv("LAMBDA_URL")
+    if not lambda_url:
+        print("Error: LAMBDA_URL not set in .env")
+        return
+        
+    # Ensure URL ends with /sse
+    base_url = f"{lambda_url.rstrip('/')}/sse"
     if len(sys.argv) > 1:
         session_id = sys.argv[1]
     else:

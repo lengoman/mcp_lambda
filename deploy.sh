@@ -53,7 +53,30 @@ mkdir package
 echo "Zipping source files..."
 # Ensure run.sh is executable
 chmod +x run.sh
-zip $ZIP_FILE server.py run.sh
+
+# Ensure run.sh has LF line endings for cross-platform support
+echo "Preparing run.sh with LF line endings..."
+python3 -c "
+import os
+if os.path.exists('run.sh'):
+    with open('run.sh', 'rb') as f_in, open('run_clean.sh', 'wb') as f_out:
+        content = f_in.read().replace(b'\r\n', b'\n')
+        f_out.write(content)
+"
+chmod +x run_clean.sh
+
+# Zip files - renaming run_clean.sh to run.sh inside the zip
+# We swap the files temporarily
+if [ -f "run_clean.sh" ]; then
+    mv run.sh run.sh.bak
+    mv run_clean.sh run.sh
+    zip $ZIP_FILE server.py run.sh
+    mv run.sh run_clean.sh
+    mv run.sh.bak run.sh
+    rm run_clean.sh
+else
+    zip $ZIP_FILE server.py run.sh
+fi
 
 # 3. Deployment
 echo "Deploying to AWS Lambda..."
@@ -150,5 +173,16 @@ else
 fi
 
 FUNCTION_URL=$(aws lambda get-function-url-config --function-name $FUNCTION_NAME --region $REGION --query 'FunctionUrl' --output text)
+
+# Update .env with LAMBDA_URL
+if grep -q "^LAMBDA_URL=" .env; then
+    # Update existing line
+    sed "s|^LAMBDA_URL=.*|LAMBDA_URL=$FUNCTION_URL|" .env > .env.tmp && mv .env.tmp .env
+else
+    # Append to file
+    echo "LAMBDA_URL=$FUNCTION_URL" >> .env
+fi
+echo "Updated .env with LAMBDA_URL=$FUNCTION_URL"
+
 echo "Deployment complete! Function URL: $FUNCTION_URL"
 echo "Note: The client may hang during handshake due to buffering. Ensure the client is using a streaming-capable HTTP client."
