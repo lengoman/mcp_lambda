@@ -51,7 +51,7 @@ rm layer_adapter.zip
 # 3. Ensure 'bootstrap' has LF line endings (Windows fix)
 # Explicitly overwrite bootstrap to ensure it works cross-platform
 echo "Enforcing LF line endings for bootstrap..."
-python3 -c "
+uv run python -c "
 with open('layer_content/bootstrap', 'wb') as f:
     f.write(b'#!/bin/sh\nexec \"\${LAMBDA_TASK_ROOT}/\${_HANDLER}\"\n')
 "

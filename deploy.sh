@@ -56,7 +56,7 @@ chmod +x run.sh
 
 # Ensure run.sh has LF line endings for cross-platform support
 echo "Preparing run.sh with LF line endings..."
-python3 -c "
+uv run python -c "
 import os
 if os.path.exists('run.sh'):
     with open('run.sh', 'rb') as f_in, open('run_clean.sh', 'wb') as f_out:
