@@ -123,7 +123,7 @@ aws iam put-role-policy --role-name $ROLE_NAME --policy-name DynamoDBAccess --po
     ]
 }'
 
-ENV_VARS="Variables={AWS_LAMBDA_EXEC_WRAPPER=/opt/bootstrap,RUST_LOG=info,PORT=8080,PYTHONUNBUFFERED=1,AWS_LWA_INVOKE_MODE=response_stream,TABLE_NAME=$TABLE_NAME}"
+ENV_VARS="Variables={AWS_LAMBDA_EXEC_WRAPPER=//opt/bootstrap,RUST_LOG=info,PORT=8080,PYTHONUNBUFFERED=1,AWS_LWA_INVOKE_MODE=response_stream,TABLE_NAME=$TABLE_NAME}"
 
 # Check if function exists
 if aws lambda get-function --function-name $FUNCTION_NAME --region $REGION >/dev/null 2>&1; then
