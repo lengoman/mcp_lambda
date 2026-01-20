@@ -3,7 +3,9 @@ set -e
 
 # Load environment variables
 if [ -f .env ]; then
-    export $(cat .env | xargs)
+    set -a
+    source .env
+    set +a
 else
     echo "Error: .env file not found"
     exit 1
@@ -43,17 +45,15 @@ fi
 echo "Packaging..."
 rm -rf package
 mkdir package
-# Use uv pip to install dependencies to package target
-uv pip install -r requirements.txt --target package --system # Using --system to install directly to target without venv mechanics inside package
+# Note: Dependencies are provided via Lambda Layer (see deploy_layer.sh)
+
 
 # Zip contents
-cd package
-chmod -R 755 .
-zip -r ../$ZIP_FILE .
-cd ..
+# Dependencies are in the layer, so we just package the source files
+echo "Zipping source files..."
 # Ensure run.sh is executable
 chmod +x run.sh
-zip -g $ZIP_FILE server.py run.sh
+zip $ZIP_FILE server.py run.sh
 
 # 3. Deployment
 echo "Deploying to AWS Lambda..."
